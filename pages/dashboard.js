@@ -1,19 +1,28 @@
 import { useEffect, useState } from 'react'
+import Nav from '../components/Nav'
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://smartworkout-backend.vercel.app/api'
+const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
-const NAV = [
-  { icon: '🏠', label: 'Home', href: '/dashboard' },
-  { icon: '💪', label: 'Train', href: '/workouts' },
-  { icon: '🤖', label: 'AI', href: '/ai' },
-  { icon: '📊', label: 'Progress', href: '/progress' },
-  { icon: '👤', label: 'Profile', href: '/profile' },
-]
+function StatCard({ icon, value, label, loading }) {
+  return (
+    <div style={{ backgroundColor: '#12121c', border: '1px solid #1e1e2e', borderRadius: 14, padding: '14px 10px', textAlign: 'center' }}>
+      <div style={{ fontSize: '1.4rem', marginBottom: 4 }}>{icon}</div>
+      {loading
+        ? <div className="skeleton" style={{ height: 24, width: 40, margin: '4px auto 6px' }} />
+        : <div style={{ color: '#c8f135', fontWeight: 800, fontSize: '1.4rem' }}>{value}</div>
+      }
+      <div style={{ color: '#5a5a7a', fontSize: '0.65rem', fontWeight: 600, textTransform: 'uppercase' }}>{label}</div>
+    </div>
+  )
+}
 
 export default function Dashboard() {
   const [user, setUser] = useState(null)
-  const [stats, setStats] = useState({ streak: 0, weeklyWorkouts: 0, calories: 0 })
+  const [stats, setStats] = useState(null)
   const [greeting, setGreeting] = useState('Good morning')
+  const [today, setToday] = useState('')
+  const [statsLoading, setStatsLoading] = useState(true)
 
   useEffect(() => {
     const token = localStorage.getItem('token')
@@ -24,87 +33,57 @@ export default function Dashboard() {
     if (h < 12) setGreeting('Good morning')
     else if (h < 17) setGreeting('Good afternoon')
     else setGreeting('Good evening')
+    setToday(new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }))
+    fetchStats(token)
   }, [])
 
-  const s = {
-    page: { minHeight: '100vh', backgroundColor: '#050508', color: '#f0f0f8', padding: '1.5rem 1rem 6rem' },
-    header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' },
-    avatar: { width: '44px', height: '44px', borderRadius: '50%', backgroundColor: '#c8f135', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.3rem' },
-    statsGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem', marginBottom: '1.5rem' },
-    statCard: { backgroundColor: '#12121c', border: '1px solid #1e1e30', borderRadius: '0.75rem', padding: '1rem', textAlign: 'center' },
-    card: { backgroundColor: '#12121c', border: '1px solid #1e1e30', borderRadius: '1rem', padding: '1.25rem', marginBottom: '1rem' },
-    accentBtn: { width: '100%', padding: '0.85rem', backgroundColor: '#c8f135', color: '#050508', border: 'none', borderRadius: '9999px', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer', marginTop: '1rem' },
-    grid2: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1rem' },
-    quickCard: { backgroundColor: '#12121c', border: '1px solid #1e1e30', borderRadius: '0.75rem', padding: '1.25rem', textAlign: 'center', cursor: 'pointer' },
-    nav: { position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: '430px', backgroundColor: '#12121c', borderTop: '1px solid #1e1e30', display: 'flex', justifyContent: 'space-around', padding: '0.6rem 0' },
-    navItem: { textAlign: 'center', color: '#6b6b8a', textDecoration: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' },
+  const fetchStats = async (token) => {
+    setStatsLoading(true)
+    try {
+      const res = await fetch(API + '/logs/stats', { headers: { 'Authorization': 'Bearer ' + token } })
+      const data = await res.json()
+      setStats(data)
+    } catch (e) {
+      setStats({ streak: 0, weekly_workouts: 0, total_calories: 0 })
+    }
+    setStatsLoading(false)
   }
 
+  const todayDow = new Date().getDay()
+
   return (
-    <div style={s.page}>
-      {/* Header */}
-      <div style={s.header}>
-        <div>
-          <p style={{ color: '#6b6b8a', fontSize: '0.85rem' }}>{greeting} 👋</p>
-          <h1 style={{ color: '#c8f135', fontSize: '1.4rem', margin: 0 }}>
-            {user?.name || 'Athlete'}
-          </h1>
+    <div style={{ minHeight: '100vh', backgroundColor: '#050508', color: '#f0f0f8', paddingBottom: 80 }}>
+      <div className="fade-up" style={{ padding: '1.5rem 1rem 0' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div>
+            <p style={{ color: '#5a5a7a', fontSize: '0.8rem' }}>{today}</p>
+            <p style={{ color: '#8888aa', fontSize: '0.85rem', marginTop: 2 }}>{greeting} 👋</p>
+            <h1 style={{ color: '#f0f0f8', fontSize: '2rem', fontWeight: 800, marginTop: 2 }}>
+              {user?.name?.split(' ')[0]?.toUpperCase() || 'ATHLETE'}
+            </h1>
+          </div>
+          <div style={{ width: 46, height: 46, borderRadius: '50%', background: 'linear-gradient(135deg, #c8f135, #7ab010)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.4rem' }}>💪</div>
         </div>
-        <div style={s.avatar}>💪</div>
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', backgroundColor: '#12121c', border: '1px solid #1e1e2e', borderRadius: 14, padding: '10px 12px', marginTop: '1rem' }}>
+          {DAYS.map((day, i) => {
+            const isToday = i === todayDow
+            return (
+              <div key={day} style={{ textAlign: 'center', flex: 1 }}>
+                <div style={{ color: isToday ? '#c8f135' : '#5a5a7a', fontSize: '0.65rem', fontWeight: 700, marginBottom: 5, textTransform: 'uppercase' }}>{day}</div>
+                <div style={{ width: 28, height: 28, borderRadius: '50%', margin: '0 auto', backgroundColor: isToday ? '#c8f135' : 'transparent', border: isToday ? 'none' : '1.5px solid #1e1e2e', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 700, color: isToday ? '#050508' : '#5a5a7a' }}>
+                  {new Date(new Date().setDate(new Date().getDate() - todayDow + i)).getDate()}
+                </div>
+              </div>
+            )
+          })}
+        </div>
       </div>
 
-      {/* Stats */}
-      <div style={s.statsGrid}>
-        {[
-          { label: 'Streak', value: stats.streak, icon: '🔥', unit: 'days' },
-          { label: 'Workouts', value: stats.weeklyWorkouts, icon: '💪', unit: 'this week' },
-          { label: 'Calories', value: stats.calories, icon: '⚡', unit: 'burned' },
-        ].map((stat, i) => (
-          <div key={i} style={s.statCard}>
-            <div style={{ fontSize: '1.5rem' }}>{stat.icon}</div>
-            <div style={{ color: '#c8f135', fontWeight: 'bold', fontSize: '1.3rem' }}>{stat.value}</div>
-            <div style={{ color: '#6b6b8a', fontSize: '0.65rem', marginTop: '2px' }}>{stat.label}</div>
-          </div>
-        ))}
+      <div className="fade-up-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.65rem', padding: '1rem 1rem 0' }}>
+        <StatCard icon="🔥" value={stats?.streak ?? 0} label="Day Streak" loading={statsLoading} />
+        <StatCard icon="💪" value={stats?.weekly_workouts ?? 0} label="This Week" loading={statsLoading} />
+        <StatCard icon="⚡" value={stats?.total_calories ?? 0} label="Calories" loading={statsLoading} />
       </div>
 
-      {/* Today's Workout */}
-      <div style={s.card}>
-        <h2 style={{ fontSize: '1rem', marginBottom: '0.75rem' }}>🏋️ Today's Workout</h2>
-        <p style={{ color: '#6b6b8a', fontSize: '0.9rem' }}>
-          No workout generated yet. Generate your personalized program!
-        </p>
-        <button style={s.accentBtn} onClick={() => window.location.href = '/workouts'}>
-          Generate My Workout 🚀
-        </button>
-      </div>
-
-      {/* Quick Actions */}
-      <h2 style={{ fontSize: '1rem', marginBottom: '0.75rem' }}>⚡ Quick Actions</h2>
-      <div style={s.grid2}>
-        {[
-          { icon: '🤖', label: 'AI Trainer', sub: 'Chat with coach', href: '/ai' },
-          { icon: '🍽️', label: 'Meal Plan', sub: 'AI nutrition', href: '/meals' },
-          { icon: '📷', label: 'Body Scan', sub: 'AI analysis', href: '/scan' },
-          { icon: '📊', label: 'Progress', sub: 'Track metrics', href: '/progress' },
-        ].map((item, i) => (
-          <div key={i} style={s.quickCard} onClick={() => window.location.href = item.href}>
-            <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>{item.icon}</div>
-            <div style={{ fontWeight: 'bold', fontSize: '0.9rem' }}>{item.label}</div>
-            <div style={{ color: '#6b6b8a', fontSize: '0.75rem', marginTop: '2px' }}>{item.sub}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Bottom Nav */}
-      <nav style={s.nav}>
-        {NAV.map((item, i) => (
-          <a key={i} href={item.href} style={s.navItem}>
-            <span style={{ fontSize: '1.4rem' }}>{item.icon}</span>
-            <span style={{ fontSize: '0.6rem' }}>{item.label}</span>
-          </a>
-        ))}
-      </nav>
-    </div>
-  )
-}
+      <div classN
