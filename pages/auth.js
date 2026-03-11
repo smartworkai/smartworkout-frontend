@@ -1,152 +1,187 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import Nav from '../components/Nav'
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://smartworkout-backend.vercel.app/api'
 
-export default function Auth() {
-  const [isLogin, setIsLogin] = useState(true)
-  const [name, setName] = useState('')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
-  const handleSubmit = async () => {
-    if (!email || !password) { setError('Please fill in all fields.'); return }
-    setLoading(true)
-    setError('')
-    try {
-      const endpoint = isLogin ? '/auth/login' : '/auth/signup'
-      const body = isLogin ? { email, password } : { name, email, password }
-      const res = await fetch(API + endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      })
-      const data = await res.json()
-      if (data.accessToken) {
-        localStorage.setItem('token', data.accessToken)
-        localStorage.setItem('user', JSON.stringify(data.user))
-        window.location.href = '/dashboard'
-      } else {
-        setError(data.error || data.message || 'Something went wrong. Please try again.')
-      }
-    } catch (e) {
-      setError('Cannot connect to server. Please try again.')
-    }
-    setLoading(false)
-  }
-
-  const inputStyle = {
-    width: '100%', padding: '14px 16px',
-    backgroundColor: '#0d0d14',
-    border: '1.5px solid #1e1e2e',
-    borderRadius: '12px',
-    color: '#f0f0f8',
-    marginBottom: '12px',
-    fontSize: '1rem',
-    transition: 'border-color 0.2s',
-  }
-
+function StatCard({ icon, value, label, loading }) {
   return (
     <div style={{
-      minHeight: '100vh', backgroundColor: '#050508',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      padding: '1rem', position: 'relative', overflow: 'hidden',
+      backgroundColor: '#12121c', border: '1px solid #1e1e2e',
+      borderRadius: 14, padding: '14px 10px', textAlign: 'center',
     }}>
-      {/* Background glow */}
-      <div style={{
-        position: 'absolute', top: '-80px', left: '50%', transform: 'translateX(-50%)',
-        width: '300px', height: '300px',
-        background: 'radial-gradient(circle, rgba(200,241,53,0.08) 0%, transparent 70%)',
-        pointerEvents: 'none',
-      }} />
+      <div style={{ fontSize: '1.4rem', marginBottom: 4 }}>{icon}</div>
+      {loading
+        ? <div className="skeleton" style={{ height: 24, width: 40, margin: '4px auto 6px' }} />
+        : <div style={{ color: '#c8f135', fontWeight: 800, fontSize: '1.4rem',
+            fontFamily: 'Barlow Condensed, sans-serif' }}>{value}</div>
+      }
+      <div style={{ color: '#5a5a7a', fontSize: '0.65rem', fontWeight: 600, letterSpacing: '0.05em',
+        textTransform: 'uppercase' }}>{label}</div>
+    </div>
+  )
+}
 
-      <div className="fade-up" style={{
-        backgroundColor: '#12121c',
-        border: '1px solid #1e1e2e',
-        borderRadius: '24px',
-        padding: '2rem 1.75rem',
-        width: '100%', maxWidth: '400px',
-        position: 'relative',
-      }}>
-        {/* Logo */}
-        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+export default function Dashboard() {
+  const [user, setUser] = useState(null)
+  const [stats, setStats] = useState(null)
+  const [greeting, setGreeting] = useState('Good morning')
+  const [today, setToday] = useState('')
+  const [statsLoading, setStatsLoading] = useState(true)
+
+  useEffect(() => {
+    const token = localStorage.getItem('token')
+    if (!token) { window.location.href = '/auth'; return }
+    const u = localStorage.getItem('user')
+    if (u) setUser(JSON.parse(u))
+    const h = new Date().getHours()
+    if (h < 12) setGreeting('Good morning')
+    else if (h < 17) setGreeting('Good afternoon')
+    else setGreeting('Good evening')
+    const d = new Date()
+    setToday(d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }))
+
+    fetchStats(token)
+  }, [])
+
+  const fetchStats = async (token) => {
+    setStatsLoading(true)
+    try {
+      const res = await fetch(API + '/logs/stats', {
+        headers: { 'Authorization': 'Bearer ' + token }
+      })
+      const data = await res.json()
+      setStats(data)
+    } catch (e) {
+      setStats({ streak: 0, weekly_workouts: 0, total_calories: 0 })
+    }
+    setStatsLoading(false)
+  }
+
+  const todayDow = new Date().getDay()
+
+  return (
+    <div style={{ minHeight: '100vh', backgroundColor: '#050508', color: '#f0f0f8', paddingBottom: 80 }}>
+      {/* Header */}
+      <div className="fade-up" style={{ padding: '1.5rem 1rem 0' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div>
+            <p style={{ color: '#5a5a7a', fontSize: '0.8rem', fontWeight: 500 }}>{today}</p>
+            <p style={{ color: '#8888aa', fontSize: '0.85rem', marginTop: 2 }}>{greeting} 👋</p>
+            <h1 style={{
+              fontFamily: 'Barlow Condensed, sans-serif',
+              color: '#f0f0f8', fontSize: '2rem', fontWeight: 800, marginTop: 2,
+              letterSpacing: '0.02em', lineHeight: 1,
+            }}>
+              {user?.name?.split(' ')[0]?.toUpperCase() || 'ATHLETE'}
+            </h1>
+          </div>
           <div style={{
-            width: 72, height: 72,
+            width: 46, height: 46, borderRadius: '50%',
             background: 'linear-gradient(135deg, #c8f135, #7ab010)',
-            borderRadius: '20px',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '2rem', margin: '0 auto 1rem',
-            boxShadow: '0 8px 32px rgba(200,241,53,0.25)',
+            fontSize: '1.4rem', boxShadow: '0 4px 16px rgba(200,241,53,0.3)',
           }}>💪</div>
-          <h1 style={{
-            fontFamily: 'Barlow Condensed, sans-serif',
-            color: '#f0f0f8', fontSize: '1.9rem', fontWeight: 800,
-            letterSpacing: '0.02em',
-          }}>SMARTWORKOUT <span style={{ color: '#c8f135' }}>AI</span></h1>
-          <p style={{ color: '#5a5a7a', fontSize: '0.875rem', marginTop: '4px' }}>
-            Your FREE AI Personal Trainer
-          </p>
         </div>
 
-        {/* Toggle */}
+        {/* Weekly day strip */}
         <div style={{
-          display: 'flex', backgroundColor: '#0d0d14',
-          borderRadius: '9999px', padding: '4px', marginBottom: '1.5rem',
+          display: 'flex', justifyContent: 'space-between',
+          backgroundColor: '#12121c', border: '1px solid #1e1e2e',
+          borderRadius: 14, padding: '10px 12px', marginTop: '1rem',
         }}>
-          {['Login', 'Sign Up'].map((label, i) => {
-            const active = (label === 'Login') === isLogin
+          {DAYS.map((day, i) => {
+            const isToday = i === todayDow
             return (
-              <button key={label} onClick={() => setIsLogin(label === 'Login')} style={{
-                flex: 1, padding: '10px',
-                borderRadius: '9999px', border: 'none',
-                backgroundColor: active ? '#c8f135' : 'transparent',
-                color: active ? '#050508' : '#5a5a7a',
-                fontWeight: '700', cursor: 'pointer', fontSize: '0.9rem',
-                transition: 'all 0.2s',
-              }}>{label}</button>
+              <div key={day} style={{ textAlign: 'center', flex: 1 }}>
+                <div style={{ color: isToday ? '#c8f135' : '#5a5a7a', fontSize: '0.65rem',
+                  fontWeight: 700, marginBottom: 5, textTransform: 'uppercase' }}>{day}</div>
+                <div style={{
+                  width: 28, height: 28, borderRadius: '50%', margin: '0 auto',
+                  backgroundColor: isToday ? '#c8f135' : 'transparent',
+                  border: isToday ? 'none' : '1.5px solid #1e1e2e',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: '0.75rem', fontWeight: 700,
+                  color: isToday ? '#050508' : '#5a5a7a',
+                }}>
+                  {new Date(new Date().setDate(new Date().getDate() - todayDow + i)).getDate()}
+                </div>
+              </div>
             )
           })}
         </div>
-
-        {error && (
-          <div style={{
-            backgroundColor: '#2d0f0f', border: '1px solid rgba(255,68,68,0.4)',
-            color: '#ff6b6b', padding: '12px 14px', borderRadius: '10px',
-            marginBottom: '14px', fontSize: '0.875rem', textAlign: 'center',
-          }}>⚠️ {error}</div>
-        )}
-
-        {!isLogin && (
-          <input style={inputStyle} placeholder="Your Name" value={name} onChange={e => setName(e.target.value)} />
-        )}
-        <input style={inputStyle} placeholder="Email address" type="email" value={email}
-          onChange={e => setEmail(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && handleSubmit()} />
-        <input style={inputStyle} placeholder="Password" type="password" value={password}
-          onChange={e => setPassword(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && handleSubmit()} />
-
-        <button onClick={handleSubmit} disabled={loading} style={{
-          width: '100%', padding: '14px',
-          backgroundColor: '#c8f135', color: '#050508',
-          border: 'none', borderRadius: '12px',
-          fontWeight: '700', fontSize: '1rem', cursor: 'pointer',
-          marginTop: '4px',
-          boxShadow: loading ? 'none' : '0 4px 20px rgba(200,241,53,0.3)',
-          transition: 'all 0.2s',
-        }}>
-          {loading ? '⏳ Please wait...' : isLogin ? '🔐 Login' : '🚀 Create Account'}
-        </button>
-
-        <p style={{ textAlign: 'center', color: '#5a5a7a', fontSize: '0.8rem', marginTop: '1.25rem' }}>
-          {isLogin ? "Don't have an account? " : 'Already have an account? '}
-          <span style={{ color: '#c8f135', cursor: 'pointer', fontWeight: '600' }}
-            onClick={() => setIsLogin(!isLogin)}>
-            {isLogin ? 'Sign up free' : 'Log in'}
-          </span>
-        </p>
       </div>
+
+      {/* Stats */}
+      <div className="fade-up-2" style={{
+        display: 'grid', gridTemplateColumns: '1fr 1fr 1fr',
+        gap: '0.65rem', padding: '1rem 1rem 0',
+      }}>
+        <StatCard icon="🔥" value={stats?.streak ?? 0} label="Day Streak" loading={statsLoading} />
+        <StatCard icon="💪" value={stats?.weekly_workouts ?? 0} label="This Week" loading={statsLoading} />
+        <StatCard icon="⚡" value={stats?.total_calories ?? 0} label="Calories" loading={statsLoading} />
+      </div>
+
+      {/* Today's Workout */}
+      <div className="fade-up-3" style={{ padding: '1rem 1rem 0' }}>
+        <div style={{
+          background: 'linear-gradient(135deg, #1a2200, #0d1a00)',
+          border: '1px solid rgba(200,241,53,0.2)',
+          borderRadius: 14, padding: '1.25rem',
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div>
+              <p style={{ color: '#c8f135', fontSize: '0.75rem', fontWeight: 700,
+                textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>Today's Workout</p>
+              <h2 style={{ fontSize: '1.1rem', fontWeight: 700 }}>🏋️ Ready to train?</h2>
+              <p style={{ color: '#8888aa', fontSize: '0.85rem', marginTop: 4 }}>
+                Generate your AI-powered program to get started.
+              </p>
+            </div>
+            <div style={{ fontSize: '2.5rem' }}>🎯</div>
+          </div>
+          <button onClick={() => window.location.href = '/workouts'} style={{
+            width: '100%', padding: '12px',
+            backgroundColor: '#c8f135', color: '#050508',
+            border: 'none', borderRadius: 10,
+            fontWeight: 700, fontSize: '0.95rem', cursor: 'pointer',
+            marginTop: '1rem',
+            boxShadow: '0 4px 16px rgba(200,241,53,0.3)',
+          }}>Start Training →</button>
+        </div>
+      </div>
+
+      {/* Quick Actions */}
+      <div className="fade-up-4" style={{ padding: '1rem 1rem 0' }}>
+        <h2 style={{ fontSize: '0.8rem', fontWeight: 700, color: '#5a5a7a',
+          textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.75rem' }}>
+          Quick Actions
+        </h2>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.65rem' }}>
+          {[
+            { icon: '🤖', label: 'AI Trainer', sub: 'Chat with coach', href: '/ai' },
+            { icon: '🍽️', label: 'Meal Plan',  sub: 'AI nutrition',   href: '/ai'      },
+            { icon: '📷', label: 'Body Scan',  sub: 'AI analysis',    href: '/ai'      },
+            { icon: '📊', label: 'Progress',   sub: 'Track metrics',  href: '/progress'},
+          ].map((item, i) => (
+            <div key={i} onClick={() => window.location.href = item.href} style={{
+              backgroundColor: '#12121c', border: '1px solid #1e1e2e',
+              borderRadius: 14, padding: '1.1rem',
+              cursor: 'pointer', transition: 'border-color 0.2s',
+            }}
+              onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(200,241,53,0.3)'}
+              onMouseLeave={e => e.currentTarget.style.borderColor = '#1e1e2e'}
+            >
+              <div style={{ fontSize: '1.75rem', marginBottom: 6 }}>{item.icon}</div>
+              <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>{item.label}</div>
+              <div style={{ color: '#5a5a7a', fontSize: '0.75rem', marginTop: 2 }}>{item.sub}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <Nav />
     </div>
   )
 }
